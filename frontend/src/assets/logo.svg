@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" width="160" height="40" fill="none">
+  <rect width="32" height="32" y="4" rx="8" fill="#1B3B36"/>
+  <path d="M11 12h5a5 5 0 0 1 5 5v0a5 5 0 0 1-5 5h-5V12z" stroke="#F4F6F4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M19 16l3 3-3 3" stroke="#84B0A5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="42" y="22" font-family="'Geist', -apple-system, sans-serif" font-weight="700" font-size="14" fill="#093630" letter-spacing="0.05em">DION</text>
+  <text x="82" y="22" font-family="'Geist', -apple-system, sans-serif" font-weight="400" font-size="14" fill="#4b645a" letter-spacing="0.05em">VENTURES</text>
+  <text x="42" y="32" font-family="'Geist', -apple-system, sans-serif" font-weight="500" font-size="8" fill="#717976" letter-spacing="0.12em">SOCIETY SYSTEMS</text>
+</svg>

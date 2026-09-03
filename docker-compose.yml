@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: dion_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: dion_security
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # PHP 8.2 Apache / FPM Backend
+  backend:
+    image: php:8.2-apache
+    container_name: dion_php_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:80"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: dion_security
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+    volumes:
+      - ./backend:/var/www/html
+    command: >
+      bash -c "
+        apt-get update && apt-get install -y libpq-dev && docker-php-ext-install pdo pdo_pgsql &&
+        sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf &&
+        a2enmod rewrite &&
+      "
+
+  # React + Vite Frontend
+  frontend:
+    image: node:20-alpine
+    container_name: dion_react_frontend
+    restart: always
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+
