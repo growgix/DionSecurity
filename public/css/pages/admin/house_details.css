@@ -1,0 +1,28 @@
+.house-hero-card {
+    background: var(--surface-container-lowest);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.house-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--surface-container-low);
+    border-radius: var(--radius-lg);
+}
+
+.house-prop-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.house-prop-label { font-size: 11px; color: var(--secondary); text-transform: uppercase; font-weight: 600; }
+.house-prop-val { font-size: var(--font-body-md); font-weight: 700; color: var(--on-surface); }

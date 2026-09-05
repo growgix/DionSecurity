@@ -5,10 +5,10 @@ class SettingsController {
     public static function getSettings(): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->query('
-            SELECT society_name AS "societyName", address, emergency_contact AS "emergencyContact",
-                   security_hotline AS "securityHotline", visitor_pass_expiry_hours AS "visitorPassExpiryHours",
-                   require_resident_approval AS "requireResidentApproval", auto_gate_barrier AS "autoGateBarrier",
-                   intercom_voip AS "intercomVoIP"
+            SELECT society_name AS societyName, address, emergency_contact AS emergencyContact,
+                   security_hotline AS securityHotline, visitor_pass_expiry_hours AS visitorPassExpiryHours,
+                   require_resident_approval AS requireResidentApproval, auto_gate_barrier AS autoGateBarrier,
+                   intercom_voip AS intercomVoIP
             FROM settings
             WHERE id = 1
         ');
@@ -42,20 +42,16 @@ class SettingsController {
         $stmt = $pdo->prepare('
             INSERT INTO settings (id, society_name, address, emergency_contact, security_hotline, visitor_pass_expiry_hours, require_resident_approval, auto_gate_barrier, intercom_voip)
             VALUES (1, :society_name, :address, :emergency_contact, :security_hotline, :visitor_pass_expiry_hours, :require_resident_approval, :auto_gate_barrier, :intercom_voip)
-            ON CONFLICT (id) DO UPDATE SET
-                society_name = EXCLUDED.society_name,
-                address = EXCLUDED.address,
-                emergency_contact = EXCLUDED.emergency_contact,
-                security_hotline = EXCLUDED.security_hotline,
-                visitor_pass_expiry_hours = EXCLUDED.visitor_pass_expiry_hours,
-                require_resident_approval = EXCLUDED.require_resident_approval,
-                auto_gate_barrier = EXCLUDED.auto_gate_barrier,
-                intercom_voip = EXCLUDED.intercom_voip,
+            ON DUPLICATE KEY UPDATE
+                society_name = VALUES(society_name),
+                address = VALUES(address),
+                emergency_contact = VALUES(emergency_contact),
+                security_hotline = VALUES(security_hotline),
+                visitor_pass_expiry_hours = VALUES(visitor_pass_expiry_hours),
+                require_resident_approval = VALUES(require_resident_approval),
+                auto_gate_barrier = VALUES(auto_gate_barrier),
+                intercom_voip = VALUES(intercom_voip),
                 updated_at = CURRENT_TIMESTAMP
-            RETURNING society_name AS "societyName", address, emergency_contact AS "emergencyContact",
-                      security_hotline AS "securityHotline", visitor_pass_expiry_hours AS "visitorPassExpiryHours",
-                      require_resident_approval AS "requireResidentApproval", auto_gate_barrier AS "autoGateBarrier",
-                      intercom_voip AS "intercomVoIP"
         ');
 
         $stmt->execute([
@@ -69,7 +65,17 @@ class SettingsController {
             ':intercom_voip' => !empty($input['intercomVoIP']) ? 1 : 0
         ]);
 
-        $settings = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT society_name AS societyName, address, emergency_contact AS emergencyContact,
+                   security_hotline AS securityHotline, visitor_pass_expiry_hours AS visitorPassExpiryHours,
+                   require_resident_approval AS requireResidentApproval, auto_gate_barrier AS autoGateBarrier,
+                   intercom_voip AS intercomVoIP
+            FROM settings
+            WHERE id = 1
+        ');
+        $stmtSelect->execute();
+        $settings = $stmtSelect->fetch();
+
         if ($settings) {
             $settings['visitorPassExpiryHours'] = (int)$settings['visitorPassExpiryHours'];
             $settings['requireResidentApproval'] = (bool)$settings['requireResidentApproval'];

@@ -1,0 +1,4 @@
+.filter-dropdowns {
+    display: flex;
+    gap: var(--space-sm);
+}

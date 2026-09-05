@@ -5,9 +5,9 @@ class ResidentController {
     public static function getResidents(): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->query('
-            SELECT id, name, unit_number AS "unitNumber", block_name AS "blockName",
-                   category, phone, email, since, status, rfid_tag AS "rfidTag",
-                   family_count AS "familyCount", vehicles, avatar
+            SELECT id, name, unit_number AS unitNumber, block_name AS blockName,
+                   category, phone, email, since, status, rfid_tag AS rfidTag,
+                   family_count AS familyCount, vehicles, avatar
             FROM residents
             ORDER BY unit_number ASC
         ');
@@ -28,53 +28,84 @@ class ResidentController {
             return;
         }
 
+        $allowedCategories = ['Owner', 'Tenant', 'Armed Forces / Institutional'];
+        $category = $input['category'] ?? 'Owner';
+        if (!in_array($category, $allowedCategories, true)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid resident category. Allowed: ' . implode(', ', $allowedCategories)]);
+            return;
+        }
+
+        if (!empty($input['email']) && !filter_var($input['email'], FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid email address format']);
+            return;
+        }
+
         $id = 'RES-' . str_pad((string)rand(10, 999), 3, '0', STR_PAD_LEFT);
         $rfid = 'RFID-' . rand(50000, 99999);
         $avatar = strtoupper(substr($input['name'], 0, 2));
         $blockName = 'Block ' . substr($input['unitNumber'], 0, 1);
 
         $pdo = Database::getConnection();
-        $stmt = $pdo->prepare('
-            INSERT INTO residents (id, name, unit_number, block_name, category, phone, email, since, status, rfid_tag, family_count, vehicles, avatar)
-            VALUES (:id, :name, :unit_number, :block_name, :category, :phone, :email, :since, :status, :rfid_tag, :family_count, :vehicles, :avatar)
-            RETURNING id, name, unit_number AS "unitNumber", block_name AS "blockName",
-                      category, phone, email, since, status, rfid_tag AS "rfidTag",
-                      family_count AS "familyCount", vehicles, avatar
-        ');
+        try {
+            $pdo->beginTransaction();
 
-        $stmt->execute([
-            ':id' => $id,
-            ':name' => $input['name'],
-            ':unit_number' => $input['unitNumber'],
-            ':block_name' => $blockName,
-            ':category' => $input['category'] ?? 'Owner',
-            ':phone' => $input['phone'] ?? '+91 98000 00000',
-            ':email' => $input['email'] ?? 'resident@example.com',
-            ':since' => date('M Y'),
-            ':status' => 'active',
-            ':rfid_tag' => $rfid,
-            ':family_count' => 1,
-            ':vehicles' => json_encode($input['vehicles'] ?? []),
-            ':avatar' => $avatar
-        ]);
+            $stmt = $pdo->prepare('
+                INSERT INTO residents (id, name, unit_number, block_name, category, phone, email, since, status, rfid_tag, family_count, vehicles, avatar)
+                VALUES (:id, :name, :unit_number, :block_name, :category, :phone, :email, :since, :status, :rfid_tag, :family_count, :vehicles, :avatar)
+            ');
 
-        $created = $stmt->fetch();
-        if ($created) {
-            $created['vehicles'] = is_string($created['vehicles']) ? json_decode($created['vehicles'], true) : ($created['vehicles'] ?? []);
+            $stmt->execute([
+                ':id' => $id,
+                ':name' => $input['name'],
+                ':unit_number' => $input['unitNumber'],
+                ':block_name' => $blockName,
+                ':category' => $input['category'] ?? 'Owner',
+                ':phone' => $input['phone'] ?? '+91 98000 00000',
+                ':email' => $input['email'] ?? 'resident@example.com',
+                ':since' => date('M Y'),
+                ':status' => 'active',
+                ':rfid_tag' => $rfid,
+                ':family_count' => 1,
+                ':vehicles' => json_encode($input['vehicles'] ?? []),
+                ':avatar' => $avatar
+            ]);
+
+            // Also update the house unit to occupied with this resident
+            $stmtHouse = $pdo->prepare('
+                UPDATE houses
+                SET resident_name = :name, resident_phone = :phone, status = \'occupied\'
+                WHERE unit_number = :unit
+            ');
+            $stmtHouse->execute([
+                ':name' => $input['name'],
+                ':phone' => $input['phone'] ?? '+91 98000 00000',
+                ':unit' => $input['unitNumber']
+            ]);
+
+            $stmtSelect = $pdo->prepare('
+                SELECT id, name, unit_number AS unitNumber, block_name AS blockName,
+                       category, phone, email, since, status, rfid_tag AS rfidTag,
+                       family_count AS familyCount, vehicles, avatar
+                FROM residents
+                WHERE id = :id
+            ');
+            $stmtSelect->execute([':id' => $id]);
+            $created = $stmtSelect->fetch();
+
+            $pdo->commit();
+
+            if ($created) {
+                $created['vehicles'] = is_string($created['vehicles']) ? json_decode($created['vehicles'], true) : ($created['vehicles'] ?? []);
+            }
+
+            echo json_encode(['success' => true, 'data' => $created]);
+        } catch (\Exception $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
         }
-
-        // Also update the house unit to occupied with this resident
-        $stmtHouse = $pdo->prepare('
-            UPDATE houses
-            SET resident_name = :name, resident_phone = :phone, status = \'occupied\'
-            WHERE unit_number = :unit
-        ');
-        $stmtHouse->execute([
-            ':name' => $input['name'],
-            ':phone' => $input['phone'] ?? '+91 98000 00000',
-            ':unit' => $input['unitNumber']
-        ]);
-
-        echo json_encode(['success' => true, 'data' => $created]);
     }
 }

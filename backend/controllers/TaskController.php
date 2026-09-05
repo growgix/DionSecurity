@@ -6,10 +6,10 @@ class TaskController {
         $pdo = Database::getConnection();
         $stmt = $pdo->query('
             SELECT id, title, description, category, priority,
-                   assigned_to_id AS "assignedToId", assigned_to_name AS "assignedToName",
-                   assigned_role AS "assignedRole", location, due_date AS "dueDate",
-                   created_at AS "createdAt", completed_at AS "completedAt",
-                   verified_by AS "verifiedBy", status
+                   assigned_to_id AS assignedToId, assigned_to_name AS assignedToName,
+                   assigned_role AS assignedRole, location, due_date AS dueDate,
+                   created_at AS createdAt, completed_at AS completedAt,
+                   verified_by AS verifiedBy, status
             FROM tasks
             ORDER BY id DESC
         ');
@@ -17,7 +17,7 @@ class TaskController {
 
         // Attach remarks for each task
         $stmtRemarks = $pdo->query('
-            SELECT task_id AS "taskId", author, time, text
+            SELECT task_id AS taskId, author, time, text
             FROM task_remarks
             ORDER BY id ASC
         ');
@@ -43,10 +43,10 @@ class TaskController {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare('
             SELECT id, title, description, category, priority,
-                   assigned_to_id AS "assignedToId", assigned_to_name AS "assignedToName",
-                   assigned_role AS "assignedRole", location, due_date AS "dueDate",
-                   created_at AS "createdAt", completed_at AS "completedAt",
-                   verified_by AS "verifiedBy", status
+                   assigned_to_id AS assignedToId, assigned_to_name AS assignedToName,
+                   assigned_role AS assignedRole, location, due_date AS dueDate,
+                   created_at AS createdAt, completed_at AS completedAt,
+                   verified_by AS verifiedBy, status
             FROM tasks
             WHERE id = :id
         ');
@@ -74,7 +74,15 @@ class TaskController {
             return;
         }
 
-        $id = 'TSK-' . rand(886, 999);
+        $allowedPriorities = ['urgent', 'high', 'medium', 'low'];
+        $priority = $input['priority'] ?? 'medium';
+        if (!in_array($priority, $allowedPriorities, true)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid task priority. Allowed: ' . implode(', ', $allowedPriorities)]);
+            return;
+        }
+
+        $id = $input['id'] ?? ('TSK-' . date('YmdHis') . '-' . bin2hex(random_bytes(3)));
         $timeString = date('h:i A');
 
         $pdo = Database::getConnection();
@@ -95,11 +103,6 @@ class TaskController {
         $stmt = $pdo->prepare('
             INSERT INTO tasks (id, title, description, category, priority, assigned_to_id, assigned_to_name, assigned_role, location, due_date, created_at, status)
             VALUES (:id, :title, :description, :category, :priority, :assigned_to_id, :assigned_to_name, :assigned_role, :location, :due_date, :created_at, :status)
-            RETURNING id, title, description, category, priority,
-                      assigned_to_id AS "assignedToId", assigned_to_name AS "assignedToName",
-                      assigned_role AS "assignedRole", location, due_date AS "dueDate",
-                      created_at AS "createdAt", completed_at AS "completedAt",
-                      verified_by AS "verifiedBy", status
         ');
 
         $stmt->execute([
@@ -117,7 +120,17 @@ class TaskController {
             ':status' => 'assigned'
         ]);
 
-        $task = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, title, description, category, priority,
+                   assigned_to_id AS assignedToId, assigned_to_name AS assignedToName,
+                   assigned_role AS assignedRole, location, due_date AS dueDate,
+                   created_at AS createdAt, completed_at AS completedAt,
+                   verified_by AS verifiedBy, status
+            FROM tasks
+            WHERE id = :id
+        ');
+        $stmtSelect->execute([':id' => $id]);
+        $task = $stmtSelect->fetch();
         $task['remarks'] = [];
 
         echo json_encode(['success' => true, 'data' => $task]);
@@ -126,6 +139,13 @@ class TaskController {
     public static function updateStatus(string $id): void {
         $input = json_decode(file_get_contents('php://input'), true) ?? [];
         $status = $input['status'] ?? 'in_progress';
+        $allowedStatuses = ['created', 'assigned', 'in_progress', 'completed', 'verified'];
+        if (!in_array($status, $allowedStatuses, true)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'Invalid task status. Allowed: ' . implode(', ', $allowedStatuses)]);
+            return;
+        }
+
         $completedAt = ($status === 'completed' || $status === 'verified') ? date('M d, h:i A') : null;
         $verifiedBy = ($status === 'verified') ? 'Inspector R. Thorne' : null;
 
@@ -137,11 +157,6 @@ class TaskController {
                 verified_by = COALESCE(:verified_by, verified_by),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
-            RETURNING id, title, description, category, priority,
-                      assigned_to_id AS "assignedToId", assigned_to_name AS "assignedToName",
-                      assigned_role AS "assignedRole", location, due_date AS "dueDate",
-                      created_at AS "createdAt", completed_at AS "completedAt",
-                      verified_by AS "verifiedBy", status
         ');
 
         $stmt->execute([
@@ -151,7 +166,18 @@ class TaskController {
             ':verified_by' => $verifiedBy
         ]);
 
-        $task = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, title, description, category, priority,
+                   assigned_to_id AS assignedToId, assigned_to_name AS assignedToName,
+                   assigned_role AS assignedRole, location, due_date AS dueDate,
+                   created_at AS createdAt, completed_at AS completedAt,
+                   verified_by AS verifiedBy, status
+            FROM tasks
+            WHERE id = :id
+        ');
+        $stmtSelect->execute([':id' => $id]);
+        $task = $stmtSelect->fetch();
+
         if ($task) {
             $stmtRemarks = $pdo->prepare('SELECT author, time, text FROM task_remarks WHERE task_id = :task_id ORDER BY id ASC');
             $stmtRemarks->execute([':task_id' => $id]);
@@ -173,7 +199,6 @@ class TaskController {
         $stmt = $pdo->prepare('
             INSERT INTO task_remarks (task_id, author, time, text)
             VALUES (:task_id, :author, :time, :text)
-            RETURNING id, task_id AS "taskId", author, time, text
         ');
 
         $stmt->execute([
@@ -183,7 +208,16 @@ class TaskController {
             ':text' => $input['text']
         ]);
 
-        $remark = $stmt->fetch();
+        $newId = $pdo->lastInsertId();
+
+        $stmtSelect = $pdo->prepare('
+            SELECT id, task_id AS taskId, author, time, text
+            FROM task_remarks
+            WHERE id = :id
+        ');
+        $stmtSelect->execute([':id' => $newId]);
+        $remark = $stmtSelect->fetch();
+
         echo json_encode(['success' => true, 'data' => $remark]);
     }
 }

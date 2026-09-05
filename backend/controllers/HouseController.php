@@ -5,9 +5,9 @@ class HouseController {
     public static function getHouses(): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->query('
-            SELECT id, unit_number AS "unitNumber", block_id AS "blockId", block_name AS "blockName",
-                   floor, type, resident_name AS "residentName", resident_phone AS "residentPhone",
-                   parking_slot AS "parkingSlot", intercom, status, vehicles
+            SELECT id, unit_number AS unitNumber, block_id AS blockId, block_name AS blockName,
+                   floor, type, resident_name AS residentName, resident_phone AS residentPhone,
+                   parking_slot AS parkingSlot, intercom, status, vehicles
             FROM houses
             ORDER BY unit_number ASC
         ');
@@ -23,9 +23,9 @@ class HouseController {
     public static function getHouseById(string $id): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare('
-            SELECT id, unit_number AS "unitNumber", block_id AS "blockId", block_name AS "blockName",
-                   floor, type, resident_name AS "residentName", resident_phone AS "residentPhone",
-                   parking_slot AS "parkingSlot", intercom, status, vehicles
+            SELECT id, unit_number AS unitNumber, block_id AS blockId, block_name AS blockName,
+                   floor, type, resident_name AS residentName, resident_phone AS residentPhone,
+                   parking_slot AS parkingSlot, intercom, status, vehicles
             FROM houses
             WHERE id = :id OR unit_number = :unit
         ');
@@ -54,9 +54,6 @@ class HouseController {
                 status = COALESCE(:status, status),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = :id OR unit_number = :unit
-            RETURNING id, unit_number AS "unitNumber", block_id AS "blockId", block_name AS "blockName",
-                      floor, type, resident_name AS "residentName", resident_phone AS "residentPhone",
-                      parking_slot AS "parkingSlot", intercom, status, vehicles
         ');
 
         $stmt->execute([
@@ -68,7 +65,16 @@ class HouseController {
             ':status' => $input['status'] ?? null
         ]);
 
-        $house = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, unit_number AS unitNumber, block_id AS blockId, block_name AS blockName,
+                   floor, type, resident_name AS residentName, resident_phone AS residentPhone,
+                   parking_slot AS parkingSlot, intercom, status, vehicles
+            FROM houses
+            WHERE id = :id OR unit_number = :unit
+        ');
+        $stmtSelect->execute([':id' => $id, ':unit' => $id]);
+        $house = $stmtSelect->fetch();
+
         if ($house) {
             $house['vehicles'] = is_string($house['vehicles']) ? json_decode($house['vehicles'], true) : ($house['vehicles'] ?? []);
         }

@@ -5,8 +5,8 @@ class BlockController {
     public static function getBlocks(): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->query('
-            SELECT id, name, floors, total_units AS "totalUnits", occupied_units AS "occupiedUnits",
-                   security_officer AS "securityOfficer", status
+            SELECT id, name, floors, total_units AS totalUnits, occupied_units AS occupiedUnits,
+                   security_officer AS securityOfficer, status
             FROM blocks
             ORDER BY id ASC
         ');
@@ -17,8 +17,8 @@ class BlockController {
     public static function getBlockById(string $id): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare('
-            SELECT id, name, floors, total_units AS "totalUnits", occupied_units AS "occupiedUnits",
-                   security_officer AS "securityOfficer", status
+            SELECT id, name, floors, total_units AS totalUnits, occupied_units AS occupiedUnits,
+                   security_officer AS securityOfficer, status
             FROM blocks
             WHERE id = :id
         ');
@@ -45,7 +45,6 @@ class BlockController {
                 status = COALESCE(:status, status),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
-            RETURNING id, name, floors, total_units AS "totalUnits", occupied_units AS "occupiedUnits", security_officer AS "securityOfficer", status
         ');
 
         $stmt->execute([
@@ -55,7 +54,14 @@ class BlockController {
             ':status' => $input['status'] ?? null
         ]);
 
-        $updated = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, name, floors, total_units AS totalUnits, occupied_units AS occupiedUnits, security_officer AS securityOfficer, status
+            FROM blocks
+            WHERE id = :id
+        ');
+        $stmtSelect->execute([':id' => $id]);
+        $updated = $stmtSelect->fetch();
+
         echo json_encode(['success' => true, 'data' => $updated]);
     }
 }

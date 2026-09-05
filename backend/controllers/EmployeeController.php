@@ -5,11 +5,11 @@ class EmployeeController {
     public static function getEmployees(): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->query('
-            SELECT id, name, badge_no AS "badgeNo", role, department, shift,
-                   assigned_location AS "assignedLocation", status, daily_wage AS "dailyWage",
-                   monthly_wage AS "monthlyWage", phone, aadhaar, rating,
-                   tasks_completed AS "tasksCompleted", joining_date AS "joiningDate",
-                   avatar, today_attendance AS "todayAttendance"
+            SELECT id, name, badge_no AS badgeNo, role, department, shift,
+                   assigned_location AS assignedLocation, status, daily_wage AS dailyWage,
+                   monthly_wage AS monthlyWage, phone, aadhaar, rating,
+                   tasks_completed AS tasksCompleted, joining_date AS joiningDate,
+                   avatar, today_attendance AS todayAttendance
             FROM employees
             ORDER BY badge_no ASC
         ');
@@ -29,11 +29,11 @@ class EmployeeController {
     public static function getEmployeeById(string $id): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare('
-            SELECT id, name, badge_no AS "badgeNo", role, department, shift,
-                   assigned_location AS "assignedLocation", status, daily_wage AS "dailyWage",
-                   monthly_wage AS "monthlyWage", phone, aadhaar, rating,
-                   tasks_completed AS "tasksCompleted", joining_date AS "joiningDate",
-                   avatar, today_attendance AS "todayAttendance"
+            SELECT id, name, badge_no AS badgeNo, role, department, shift,
+                   assigned_location AS assignedLocation, status, daily_wage AS dailyWage,
+                   monthly_wage AS monthlyWage, phone, aadhaar, rating,
+                   tasks_completed AS tasksCompleted, joining_date AS joiningDate,
+                   avatar, today_attendance AS todayAttendance
             FROM employees
             WHERE id = :id OR badge_no = :badge
         ');
@@ -82,11 +82,6 @@ class EmployeeController {
                 today_attendance = :today_attendance,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = :id OR badge_no = :badge
-            RETURNING id, name, badge_no AS "badgeNo", role, department, shift,
-                      assigned_location AS "assignedLocation", status, daily_wage AS "dailyWage",
-                      monthly_wage AS "monthlyWage", phone, aadhaar, rating,
-                      tasks_completed AS "tasksCompleted", joining_date AS "joiningDate",
-                      avatar, today_attendance AS "todayAttendance"
         ');
 
         $stmt->execute([
@@ -96,7 +91,18 @@ class EmployeeController {
             ':today_attendance' => json_encode($newAttendance)
         ]);
 
-        $emp = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, name, badge_no AS badgeNo, role, department, shift,
+                   assigned_location AS assignedLocation, status, daily_wage AS dailyWage,
+                   monthly_wage AS monthlyWage, phone, aadhaar, rating,
+                   tasks_completed AS tasksCompleted, joining_date AS joiningDate,
+                   avatar, today_attendance AS todayAttendance
+            FROM employees
+            WHERE id = :id OR badge_no = :badge
+        ');
+        $stmtSelect->execute([':id' => $id, ':badge' => $id]);
+        $emp = $stmtSelect->fetch();
+
         if ($emp) {
             $emp['todayAttendance'] = is_string($emp['todayAttendance']) ? json_decode($emp['todayAttendance'], true) : ($emp['todayAttendance'] ?? []);
         }
@@ -126,11 +132,6 @@ class EmployeeController {
             SET today_attendance = :today_attendance,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = :id OR badge_no = :badge
-            RETURNING id, name, badge_no AS "badgeNo", role, department, shift,
-                      assigned_location AS "assignedLocation", status, daily_wage AS "dailyWage",
-                      monthly_wage AS "monthlyWage", phone, aadhaar, rating,
-                      tasks_completed AS "tasksCompleted", joining_date AS "joiningDate",
-                      avatar, today_attendance AS "todayAttendance"
         ');
 
         $stmt->execute([
@@ -139,7 +140,18 @@ class EmployeeController {
             ':today_attendance' => json_encode($newAttendance)
         ]);
 
-        $emp = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, name, badge_no AS badgeNo, role, department, shift,
+                   assigned_location AS assignedLocation, status, daily_wage AS dailyWage,
+                   monthly_wage AS monthlyWage, phone, aadhaar, rating,
+                   tasks_completed AS tasksCompleted, joining_date AS joiningDate,
+                   avatar, today_attendance AS todayAttendance
+            FROM employees
+            WHERE id = :id OR badge_no = :badge
+        ');
+        $stmtSelect->execute([':id' => $id, ':badge' => $id]);
+        $emp = $stmtSelect->fetch();
+
         if ($emp) {
             $emp['todayAttendance'] = is_string($emp['todayAttendance']) ? json_decode($emp['todayAttendance'], true) : ($emp['todayAttendance'] ?? []);
         }
@@ -155,19 +167,14 @@ class EmployeeController {
             return;
         }
 
-        $id = 'WRK-' . rand(1020, 9999);
-        $badgeNo = 'DION-E' . rand(200, 999);
+        $id = $input['id'] ?? ('WRK-' . rand(1020, 9999));
+        $badgeNo = $input['badgeNo'] ?? ('DION-E' . strtoupper(bin2hex(random_bytes(3))));
         $avatar = strtoupper(substr($input['name'], 0, 2));
 
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare('
             INSERT INTO employees (id, name, badge_no, role, department, shift, assigned_location, status, daily_wage, monthly_wage, phone, aadhaar, rating, tasks_completed, joining_date, avatar, today_attendance)
             VALUES (:id, :name, :badge_no, :role, :department, :shift, :assigned_location, :status, :daily_wage, :monthly_wage, :phone, :aadhaar, :rating, :tasks_completed, :joining_date, :avatar, :today_attendance)
-            RETURNING id, name, badge_no AS "badgeNo", role, department, shift,
-                      assigned_location AS "assignedLocation", status, daily_wage AS "dailyWage",
-                      monthly_wage AS "monthlyWage", phone, aadhaar, rating,
-                      tasks_completed AS "tasksCompleted", joining_date AS "joiningDate",
-                      avatar, today_attendance AS "todayAttendance"
         ');
 
         $todayAttendance = [
@@ -197,7 +204,18 @@ class EmployeeController {
             ':today_attendance' => json_encode($todayAttendance)
         ]);
 
-        $created = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, name, badge_no AS badgeNo, role, department, shift,
+                   assigned_location AS assignedLocation, status, daily_wage AS dailyWage,
+                   monthly_wage AS monthlyWage, phone, aadhaar, rating,
+                   tasks_completed AS tasksCompleted, joining_date AS joiningDate,
+                   avatar, today_attendance AS todayAttendance
+            FROM employees
+            WHERE id = :id
+        ');
+        $stmtSelect->execute([':id' => $id]);
+        $created = $stmtSelect->fetch();
+
         if ($created) {
             $created['todayAttendance'] = is_string($created['todayAttendance']) ? json_decode($created['todayAttendance'], true) : ($created['todayAttendance'] ?? []);
         }

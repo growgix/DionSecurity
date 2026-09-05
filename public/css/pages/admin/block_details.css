@@ -1,0 +1,28 @@
+.block-hero-card {
+    background: var(--surface-container-lowest);
+    border: 1px solid var(--outline-variant);
+    border-radius: var(--radius-xl);
+    padding: var(--space-lg);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.hero-stats-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-md);
+    padding: var(--space-md);
+    background: var(--surface-container-low);
+    border-radius: var(--radius-lg);
+}
+
+.hero-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hero-stat-label { font-size: 11px; color: var(--secondary); text-transform: uppercase; font-weight: 600; }
+.hero-stat-val { font-size: var(--font-headline-sm); font-weight: 800; color: var(--on-surface); }

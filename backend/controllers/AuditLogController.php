@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/auth.php';
 
 class AuditLogController {
     public static function getAuditLogs(): void {
@@ -21,26 +22,36 @@ class AuditLogController {
             return;
         }
 
-        $id = 'AUD-' . rand(1000, 9999);
+        // Require authentication and use server-side identity to prevent actor spoofing
+        $user = requireAuth();
+        $actor = $user['name'] . ' (' . ucfirst($user['role']) . ')';
+
+        $id = $input['id'] ?? ('AUD-' . date('YmdHis') . '-' . bin2hex(random_bytes(3)));
         $timeString = date('h:i:s A');
 
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare('
             INSERT INTO audit_logs (id, timestamp, actor, action, details, ip)
             VALUES (:id, :timestamp, :actor, :action, :details, :ip)
-            RETURNING id, timestamp, actor, action, details, ip
         ');
 
         $stmt->execute([
             ':id' => $id,
             ':timestamp' => $timeString,
-            ':actor' => $input['actor'] ?? 'System Operator',
+            ':actor' => $actor,
             ':action' => $input['action'],
             ':details' => $input['details'] ?? 'System audit event',
             ':ip' => $_SERVER['REMOTE_ADDR'] ?? '10.0.1.44 (Active Session)'
         ]);
 
-        $log = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, timestamp, actor, action, details, ip
+            FROM audit_logs
+            WHERE id = :id
+        ');
+        $stmtSelect->execute([':id' => $id]);
+        $log = $stmtSelect->fetch();
+
         echo json_encode(['success' => true, 'data' => $log]);
     }
 }

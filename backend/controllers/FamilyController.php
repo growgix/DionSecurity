@@ -5,8 +5,8 @@ class FamilyController {
     public static function getFamilyMembers(): void {
         $pdo = Database::getConnection();
         $stmt = $pdo->query('
-            SELECT id, resident_id AS "residentId", resident_name AS "residentName",
-                   unit_number AS "unitNumber", name, relation, phone, rfid_tag AS "rfidTag", status
+            SELECT id, resident_id AS residentId, resident_name AS residentName,
+                   unit_number AS unitNumber, name, relation, phone, rfid_tag AS rfidTag, status
             FROM family_members
             ORDER BY unit_number ASC
         ');
@@ -29,8 +29,6 @@ class FamilyController {
         $stmt = $pdo->prepare('
             INSERT INTO family_members (id, resident_id, resident_name, unit_number, name, relation, phone, rfid_tag, status)
             VALUES (:id, :resident_id, :resident_name, :unit_number, :name, :relation, :phone, :rfid_tag, :status)
-            RETURNING id, resident_id AS "residentId", resident_name AS "residentName",
-                      unit_number AS "unitNumber", name, relation, phone, rfid_tag AS "rfidTag", status
         ');
 
         $stmt->execute([
@@ -45,7 +43,14 @@ class FamilyController {
             ':status' => 'active'
         ]);
 
-        $created = $stmt->fetch();
+        $stmtSelect = $pdo->prepare('
+            SELECT id, resident_id AS residentId, resident_name AS residentName,
+                   unit_number AS unitNumber, name, relation, phone, rfid_tag AS rfidTag, status
+            FROM family_members
+            WHERE id = :id
+        ');
+        $stmtSelect->execute([':id' => $id]);
+        $created = $stmtSelect->fetch();
         echo json_encode(['success' => true, 'data' => $created]);
     }
 }
